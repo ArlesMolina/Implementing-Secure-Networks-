@@ -1,0 +1,192 @@
+!================================================================
+!Solución de "El diseño post pandemia para una nueva sucursal bancaria."
+!Autor: Arles Guevara Molina
+!================================================================
+
+!---------- Router RSucursal ---------
+
+! Entrar al modo privilegiado (EXEC)
+enable 
+
+
+! Configurar la terminal
+configure terminal
+
+! Configurar los parámetros de la terminal (nombre, banner, etc)
+! Bautizar el router
+hostname RSucursal
+
+!Desactivar la búsqueda de un servidor para resolver comandos que no existan
+no ip domain-lookup
+
+! Definir un mensaje prevención de entrada al equipo.
+banner motd & 
+**Acceso Restringido**
+
+Este sistema esta protegido bajo las leyes mexicanas y de ciberseguridad. 
+El acceso no autorizado esta prohibido y sera sancionado conforme a las 
+regulaciones locales e internacionales.
+
+Si no tienes autorización para acceder, desconectate de inmediato.
+
+Para mas informacion o soporte, contacta a: 
+A01710380@tec.mx
+
+&
+
+
+! Establecimiento de password: Línea de la consola y las conexión remota.
+! Encender comando para cifrar passwords de texto plano
+service password-encryption
+
+
+! Dar de alta los usuarios que podrán entrar a gestionar los equipos
+! username USUARIO privilege  NIVEL_Privilegio  secret  PalabraSecreta
+username CEO privilege  15  secret  tc2036
+username CTC privilege  15  secret  tc2036
+username CFO privilege  4  secret  tc2036
+
+
+! Para activar el protocolo SSH en los equipos de interconexión, es necesario dar de alta nuestro dominio (solo es local):
+ip domain-name SucursalBancaria.com.mx
+crypto key generate rsa
+
+
+
+! Establecimiento del password de la línea de la consola
+line console 0
+	login local
+	logging sync
+
+
+! Establecimiento del password de las conexiones remotas (TELNET)
+line vty 0 3
+	login local
+	logging sync
+	transport input ssh
+
+!=== Configuración de interfaces físicas ===
+!interface IDInt
+!	description Text
+!	ip address DirIP Mask
+!	no shutdown
+
+interface S0/1/0
+	description Interfaz para conectar con RCajeros
+	ip address  192.168.20.97 255.255.255.252
+	clock rate 1000000
+	no shutdown
+
+interface S0/1/1
+	description Interfaz para conectar al inetrnet (ISP)
+	ip address 65.70.200.253 255.255.255.252
+	no shutdown
+
+interface G0/0/0
+	description Interfaz para la LAN de SVisitantes 
+	ip address 192.168.20.62 255.255.255.224
+	no shutdown
+
+interface G0/0/1
+	description Interfaz para la LAN de SEC
+	ip address 192.168.20.30 255.255.255.224
+	no shutdown
+
+! Establecimiento del protocolo de ruteo y definición de adyacencias.
+router ospf 2024
+  network 192.168.20.32 0.0.0.31 area 0
+  network 192.168.20.0 0.0.0.31 area 0
+  network 192.168.20.96 0.0.0.3 area 0
+  ! Definir interfaces pasivas para no enviar tráfico de la tabla
+  passive-interface G0/0/0
+  passive-interface G0/0/1
+  passive-interface S0/1/1
+  ! Para que todos los routers APREDAN una ruta para Internet 
+  default-information originate
+
+
+! Ruta estática por default para sacar todo el tráfico al exterior
+ip route 0.0.0.0 0.0.0.0 S0/1/1
+
+!===FIN DE CONFIGURACION DE RSUCURSAL===
+
+
+
+!================================================================
+!Solución de "El diseño post pandemia para una nueva sucursal bancaria."
+!Autor: Arles Guevara Molina
+!================================================================
+
+!---------- Router RCajas ---------
+enable
+config terminal
+hostname RCajas
+
+! Para evitar buscar un servidor cuando insertamos un comando incorrecto
+no ip domain-lookup
+
+! Definir un mensaje prevención de entrada al equipo.
+banner motd & 
+**Acceso Restringido**
+
+Este sistema esta protegido bajo las leyes mexicanas y de ciberseguridad. 
+El acceso no autorizado esta prohibido y sera sancionado conforme a las 
+regulaciones locales e internacionales.
+
+Si no tienes autorización para acceder, desconectate de inmediato.
+
+Para mas informacion o soporte, contacta a: 
+A01710380@tec.mx
+
+&
+
+! Encender el comando para cifrar los passwords de texto plano
+service password-encryption
+
+! Dar de alta los usuarios que podrán entrar a gestionar los equipos
+username CEO privilege 15 secret tc2036
+username CTI privilege 15 secret tc2036
+username COO privilege 15 secret tc2036
+username CFO privilege 4  secret tc2036
+
+! Para activar el protocolo SSH en los equipos de interconexion, es necesario dar de alta nuestro dominio (solo es local):
+ip domain-name sucursales-bancarias.com.mx
+crypto key generate rsa
+
+
+! Establecimiento de acceso por Consola y por VTY
+line console 0
+ login local
+ logging sync
+
+line vty 0 3
+ login local
+ logging sync
+ transport input ssh
+
+int s0/0/0
+ description Interfaz para interconectar con RSucursal
+ ip address 192.168.20.98 255.255.255.252 
+ no shutdown
+
+int g0/0
+  description Interfaz para la LAN de Pago de Servicios
+  ip address 192.168.20.94 255.255.255.240
+  no shutdown
+
+int g0/1
+  description Interfaz para la LAN de Cajeros Automaticos
+  ip address 192.168.20.78 255.255.255.240
+  no shutdown
+
+! Establecimiento del protocolo de ruteo y definicion de adyacencias.
+router ospf 2024
+ network 192.168.20.80 0.0.0.15 area 0
+ network 192.168.20.64 0.0.0.15 area 0
+ network 192.168.20.96 0.0.0.3 area 0
+ passive-interface G0/0
+ passive-interface G0/1
+
+! Para que todos los routers obtengan un ruta para Internet
+default-information originate
+
